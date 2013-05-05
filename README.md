@@ -1,7 +1,11 @@
 redis-collectd-plugin
 =====================
 
-A [Redis](http://redis.google.code.com) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
+forked from [powdahound/redis-collectd-plugin](https://github.com/powdahound/redis-collectd-plugin) 
+
+the main change is support multi port one host.
+
+ [Redis](http://redis.google.code.com) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
 
 Data captured includes:
 
@@ -33,7 +37,7 @@ Add the following to your collectd config **or** use the included redis.conf.
     
       <Module redis_info>
         Host "localhost"
-        Port 6379
+        Port 6379,6380,6381
         Verbose false
       </Module>
     </Plugin>

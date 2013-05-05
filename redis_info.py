@@ -34,21 +34,21 @@ import socket
 REDIS_HOST = 'localhost'
 
 # Port to connect on. Override in config by specifying 'Port'.
-REDIS_PORT = 6379
+REDIS_PORTS = '6379'
 
 # Verbose logging on/off. Override in config by specifying 'Verbose'.
 VERBOSE_LOGGING = False
 
 
-def fetch_info():
+def fetch_info(port):
     """Connect to Redis server and request info"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((REDIS_HOST, REDIS_PORT))
-        log_verbose('Connected to Redis at %s:%s' % (REDIS_HOST, REDIS_PORT))
+        s.connect((REDIS_HOST, port))
+        log_verbose('Connected to Redis at %s:%s' % (REDIS_HOST, port))
     except socket.error, e:
         collectd.error('redis_info plugin: Error connecting to %s:%d - %r'
-                       % (REDIS_HOST, REDIS_PORT, e))
+                       % (REDIS_HOST, port, e))
         return None
     fp = s.makefile('r')
     log_verbose('Sending info command')
@@ -94,21 +94,21 @@ def parse_info(info_lines):
 
 def configure_callback(conf):
     """Receive configuration block"""
-    global REDIS_HOST, REDIS_PORT, VERBOSE_LOGGING
+    global REDIS_HOST, REDIS_PORTS, VERBOSE_LOGGING
     for node in conf.children:
         if node.key == 'Host':
             REDIS_HOST = node.values[0]
-        elif node.key == 'Port':
-            REDIS_PORT = int(node.values[0])
+        elif node.key == 'Ports':
+            REDIS_PORTS = node.values[0]
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
         else:
             collectd.warning('redis_info plugin: Unknown config key: %s.'
                              % node.key)
-    log_verbose('Configured with host=%s, port=%s' % (REDIS_HOST, REDIS_PORT))
+    log_verbose('Configured with host=%s, ports=%s' % (REDIS_HOST, REDIS_PORTS))
 
 
-def dispatch_value(info, key, type, type_instance=None):
+def dispatch_value(info, key, type, port, type_instance=None):
     """Read a key from info response data and dispatch a value"""
     if key not in info:
         collectd.warning('redis_info plugin: Info key not found: %s' % key)
@@ -121,6 +121,7 @@ def dispatch_value(info, key, type, type_instance=None):
     log_verbose('Sending value: %s=%s' % (type_instance, value))
 
     val = collectd.Values(plugin='redis_info')
+    val.plugin_instance = '%d' % port
     val.type = type
     val.type_instance = type_instance
     val.values = [value]
@@ -129,31 +130,33 @@ def dispatch_value(info, key, type, type_instance=None):
 
 def read_callback():
     log_verbose('Read callback called')
-    info = fetch_info()
+    for port_str in REDIS_PORTS.split(','):
+        port=int(port_str)
+        info = fetch_info(port)
 
-    if not info:
-        collectd.error('redis plugin: No info received')
-        return
+        if not info:
+            collectd.error('redis plugin: No info received')
+            continue
 
-    # send high-level values
-    dispatch_value(info, 'uptime_in_seconds','gauge')
-    dispatch_value(info, 'connected_clients', 'gauge')
-    dispatch_value(info, 'connected_slaves', 'gauge')
-    dispatch_value(info, 'blocked_clients', 'gauge')
-    dispatch_value(info, 'evicted_keys', 'gauge')
-    dispatch_value(info, 'used_memory', 'bytes')
-    dispatch_value(info, 'changes_since_last_save', 'gauge')
-    dispatch_value(info, 'total_connections_received', 'counter',
-                   'connections_recieved')
-    dispatch_value(info, 'total_commands_processed', 'counter',
-                   'commands_processed')
+        # send high-level values
+        dispatch_value(info, 'uptime_in_seconds','gauge',port)
+        dispatch_value(info, 'connected_clients', 'gauge',port)
+        dispatch_value(info, 'connected_slaves', 'gauge',port)
+        dispatch_value(info, 'blocked_clients', 'gauge',port)
+        dispatch_value(info, 'evicted_keys', 'gauge',port)
+        dispatch_value(info, 'used_memory', 'bytes',port)
+        dispatch_value(info, 'changes_since_last_save', 'gauge',port)
+        dispatch_value(info, 'total_connections_received', 'counter',port,
+                       'connections_recieved')
+        dispatch_value(info, 'total_commands_processed', 'counter',port,
+                       'commands_processed')
 
-    # database and vm stats
-    for key in info:
-        if key.startswith('vm_stats_'):
-            dispatch_value(info, key, 'gauge')
-        if key.startswith('db'):
-            dispatch_value(info[key], 'keys', 'gauge', '%s-keys' % key)
+        # database and vm stats
+        for key in info:
+            if key.startswith('vm_stats_'):
+                dispatch_value(info, key, 'gauge',port)
+            if key.startswith('db'):
+                dispatch_value(info[key], 'keys', 'gauge',port, '%s-keys' % key)
 
 
 def log_verbose(msg):
