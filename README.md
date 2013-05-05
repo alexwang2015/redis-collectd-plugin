@@ -1,10 +1,6 @@
 redis-collectd-plugin
 =====================
 
-forked from [powdahound/redis-collectd-plugin](https://github.com/powdahound/redis-collectd-plugin) 
-
-the main change is support multi port one host.
-
  [Redis](http://redis.google.code.com) plugin for [collectd](http://collectd.org) using collectd's [Python plugin](http://collectd.org/documentation/manpages/collectd-python.5.shtml).
 
 Data captured includes:
