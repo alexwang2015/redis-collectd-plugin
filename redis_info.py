@@ -98,7 +98,7 @@ def configure_callback(conf):
     for node in conf.children:
         if node.key == 'Host':
             REDIS_HOST = node.values[0]
-        elif node.key == 'Ports':
+        elif node.key == 'Port':
             REDIS_PORTS = node.values[0]
         elif node.key == 'Verbose':
             VERBOSE_LOGGING = bool(node.values[0])
